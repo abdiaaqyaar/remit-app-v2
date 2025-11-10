@@ -6,13 +6,17 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactionsStore } from '@/stores/transactionsStore';
 import { useRecipientsStore } from '@/stores/recipientsStore';
 import { Transaction } from '@/types/database';
-import { Clock, CheckCircle, XCircle, AlertCircle, TrendingUp } from 'lucide-react-native';
+import { Clock, CheckCircle, XCircle, AlertCircle, TrendingUp, TrendingDown, DollarSign } from 'lucide-react-native';
+import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function PaymentsScreen() {
   const router = useRouter();
@@ -75,15 +79,85 @@ export default function PaymentsScreen() {
     }
   };
 
-  const totalSent = transactions.reduce(
-    (sum, t) => sum + (t.status === 'completed' ? t.send_amount : 0),
-    0
-  );
+  const completedTransactions = transactions.filter((t) => t.status === 'completed');
+  const totalSent = completedTransactions.reduce((sum, t) => sum + t.send_amount, 0);
+  const totalFees = completedTransactions.reduce((sum, t) => sum + t.fee_amount, 0);
+  const averageAmount = completedTransactions.length > 0 ? totalSent / completedTransactions.length : 0;
+
+  const getLast7DaysData = () => {
+    const days = [];
+    const amounts = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const dayTransactions = completedTransactions.filter((t) => {
+        const tDate = new Date(t.created_at).toISOString().split('T')[0];
+        return tDate === dateStr;
+      });
+
+      const total = dayTransactions.reduce((sum, t) => sum + t.send_amount, 0);
+
+      days.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+      amounts.push(total);
+    }
+
+    return { days, amounts };
+  };
+
+  const getCurrencyDistribution = () => {
+    const currencyTotals: { [key: string]: number } = {};
+
+    completedTransactions.forEach((t) => {
+      currencyTotals[t.to_currency] = (currencyTotals[t.to_currency] || 0) + t.receive_amount;
+    });
+
+    const sortedCurrencies = Object.entries(currencyTotals)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    return sortedCurrencies.map(([currency, total]) => ({
+      name: currency,
+      amount: total,
+      color: ['#a3e635', '#84cc16', '#65a30d', '#4d7c0f', '#3f6212'][
+        sortedCurrencies.findIndex(([c]) => c === currency) % 5
+      ],
+      legendFontColor: '#fff',
+      legendFontSize: 12,
+    }));
+  };
+
+  const { days, amounts } = getLast7DaysData();
+  const currencyData = getCurrencyDistribution();
+
+  const chartConfig = {
+    backgroundColor: '#1a1a1a',
+    backgroundGradientFrom: '#1a1a1a',
+    backgroundGradientTo: '#1a1a1a',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(163, 230, 53, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(153, 153, 153, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: '6',
+      strokeWidth: '2',
+      stroke: '#a3e635',
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: '#333',
+    },
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Payments</Text>
+        <Text style={styles.title}>Analytics</Text>
       </View>
 
       <ScrollView
@@ -92,18 +166,114 @@ export default function PaymentsScreen() {
           <RefreshControl refreshing={loading} onRefresh={loadTransactions} />
         }
       >
-        <View style={styles.statsCard}>
-          <View style={styles.statsIcon}>
-            <TrendingUp size={24} color="#a3e635" />
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <TrendingUp size={20} color="#a3e635" />
+            </View>
+            <Text style={styles.statValue}>${totalSent.toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Total Sent</Text>
           </View>
-          <View style={styles.statsContent}>
-            <Text style={styles.statsLabel}>Total Sent</Text>
-            <Text style={styles.statsValue}>${totalSent.toFixed(2)}</Text>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <DollarSign size={20} color="#fbbf24" />
+            </View>
+            <Text style={styles.statValue}>${averageAmount.toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Average</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <TrendingDown size={20} color="#ef4444" />
+            </View>
+            <Text style={styles.statValue}>${totalFees.toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Total Fees</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <CheckCircle size={20} color="#a3e635" />
+            </View>
+            <Text style={styles.statValue}>{completedTransactions.length}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
           </View>
         </View>
 
+        {completedTransactions.length > 0 && (
+          <>
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Last 7 Days Activity</Text>
+              <Text style={styles.chartSubtitle}>Transaction volume by day</Text>
+              <LineChart
+                data={{
+                  labels: days,
+                  datasets: [
+                    {
+                      data: amounts.length > 0 ? amounts : [0],
+                    },
+                  ],
+                }}
+                width={screenWidth - 72}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+                withInnerLines={true}
+                withOuterLines={true}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                withDots={true}
+                withShadow={false}
+              />
+            </View>
+
+            {currencyData.length > 0 && (
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Currency Distribution</Text>
+                <Text style={styles.chartSubtitle}>Top currencies received</Text>
+                <PieChart
+                  data={currencyData}
+                  width={screenWidth - 72}
+                  height={220}
+                  chartConfig={chartConfig}
+                  accessor="amount"
+                  backgroundColor="transparent"
+                  paddingLeft="15"
+                  center={[10, 0]}
+                  absolute
+                  style={styles.chart}
+                />
+              </View>
+            )}
+
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Monthly Overview</Text>
+              <Text style={styles.chartSubtitle}>Recent transactions comparison</Text>
+              <BarChart
+                data={{
+                  labels: days,
+                  datasets: [
+                    {
+                      data: amounts.length > 0 ? amounts : [0],
+                    },
+                  ],
+                }}
+                width={screenWidth - 72}
+                height={220}
+                chartConfig={chartConfig}
+                style={styles.chart}
+                withInnerLines={false}
+                showBarTops={false}
+                fromZero={true}
+                withHorizontalLabels={true}
+              />
+            </View>
+          </>
+        )}
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>All Transactions</Text>
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
           {transactions.length === 0 ? (
             <View style={styles.emptyState}>
               <Clock size={48} color="#333" />
@@ -113,7 +283,7 @@ export default function PaymentsScreen() {
               </Text>
             </View>
           ) : (
-            transactions.map((transaction) => (
+            transactions.slice(0, 5).map((transaction) => (
               <TouchableOpacity
                 key={transaction.id}
                 style={styles.transactionCard}
@@ -190,36 +360,63 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  statsCard: {
+  statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    width: (screenWidth - 60) / 2,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(163, 230, 53, 0.1)',
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#999',
+  },
+  chartCard: {
     backgroundColor: '#1a1a1a',
     marginHorizontal: 24,
     marginBottom: 24,
-    padding: 20,
     borderRadius: 16,
-    gap: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  statsIcon: {
-    width: 56,
-    height: 56,
-    backgroundColor: 'rgba(163, 230, 53, 0.1)',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsContent: {
-    flex: 1,
-  },
-  statsLabel: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 4,
-  },
-  statsValue: {
-    fontSize: 28,
+  chartTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+    marginBottom: 4,
+  },
+  chartSubtitle: {
+    fontSize: 13,
+    color: '#999',
+    marginBottom: 20,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
   },
   section: {
     padding: 24,
