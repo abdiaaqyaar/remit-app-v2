@@ -14,6 +14,7 @@ import { useTransactionsStore } from '@/stores/transactionsStore';
 import { useRecipientsStore } from '@/stores/recipientsStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/services/exchange-service';
+import { generateAndSharePDF } from '@/utils/pdfGenerator';
 
 export default function ReceiptScreen() {
   const router = useRouter();
@@ -99,12 +100,22 @@ Thank you for your transfer!
     }
   };
 
-  const handleDownload = () => {
-    Alert.alert(
-      'Download Receipt',
-      'Receipt download feature coming soon!',
-      [{ text: 'OK' }]
-    );
+  const handleDownload = async () => {
+    if (!user || !transaction) return;
+
+    try {
+      await generateAndSharePDF({
+        transaction,
+        recipient,
+        userName: user.full_name || user.email,
+      });
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to generate PDF receipt. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (

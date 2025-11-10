@@ -11,13 +11,17 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Share2, Download, CheckCircle, Clock } from 'lucide-react-native';
 import { useTransactionsStore } from '@/stores/transactionsStore';
 import { useRecipientsStore } from '@/stores/recipientsStore';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, getCurrencyByCode } from '@/services/exchange-service';
+import { generateAndSharePDF } from '@/utils/pdfGenerator';
+import { Alert } from 'react-native';
 
 export default function TransactionDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { getTransactionById } = useTransactionsStore();
   const { recipients } = useRecipientsStore();
+  const { user } = useAuth();
 
   const transaction = getTransactionById(params.id as string);
   const recipient = recipients.find((r) => r.id === transaction?.recipient_id);
@@ -79,12 +83,21 @@ export default function TransactionDetailScreen() {
   };
 
   const handleShare = async () => {
+    if (!user || !transaction) return;
+
     try {
-      await Share.share({
-        message: `Payment Receipt\n\nReference: ${transaction.reference_number}\nTo: ${recipient?.full_name}\nAmount Sent: ${formatCurrency(transaction.send_amount, transaction.from_currency)}\nAmount Received: ${formatCurrency(transaction.receive_amount, transaction.to_currency)}\nStatus: ${transaction.status}\nDate: ${formatDate(transaction.created_at)}`,
+      await generateAndSharePDF({
+        transaction,
+        recipient,
+        userName: user.full_name || user.email,
       });
     } catch (error) {
       console.error('Error sharing:', error);
+      Alert.alert(
+        'Error',
+        'Failed to generate PDF receipt. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
