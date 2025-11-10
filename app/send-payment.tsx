@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Building2, Zap, Globe } from 'lucide-react-native';
+import { ArrowLeft, Building2, CreditCard, Wallet } from 'lucide-react-native';
 import { formatCurrency } from '@/services/exchange-service';
 
 interface PaymentMethod {
@@ -23,32 +23,32 @@ interface PaymentMethod {
 export default function SendPaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [selectedMethod, setSelectedMethod] = useState<string>('ach');
+  const [selectedMethod, setSelectedMethod] = useState<string>('card');
 
   const paymentMethods: PaymentMethod[] = [
     {
-      id: 'ach',
-      type: 'Connected bank account (ACH)',
+      id: 'card',
+      type: 'Credit or Debit Card',
+      name: 'Card Payment',
+      fee: `${params.fee} ${params.fromCurrency} fee`,
+      arrival: 'Instant processing',
+      icon: <CreditCard size={24} color="#a3e635" />,
+    },
+    {
+      id: 'bank',
+      type: 'Bank Account',
       name: 'Bank Transfer',
       fee: `${params.fee} ${params.fromCurrency} fee`,
-      arrival: 'Select for estimate',
+      arrival: 'Process within 1-2 days',
       icon: <Building2 size={24} color="#a3e635" />,
     },
     {
-      id: 'wire',
-      type: 'Wire transfer',
-      name: 'Wire Transfer',
-      fee: `10.58 ${params.fromCurrency} fee`,
-      arrival: 'Should arrive by Wednesday',
-      icon: <Zap size={24} color="#a3e635" />,
-    },
-    {
-      id: 'international',
-      type: 'International wire',
-      name: 'International Wire',
-      fee: `10.58 ${params.fromCurrency} fee`,
-      arrival: 'Should arrive by November 19',
-      icon: <Globe size={24} color="#a3e635" />,
+      id: 'wallet',
+      type: 'Digital Wallet',
+      name: 'E-Wallet',
+      fee: `${(parseFloat(params.fee as string) + 1).toFixed(2)} ${params.fromCurrency} fee`,
+      arrival: 'Instant processing',
+      icon: <Wallet size={24} color="#a3e635" />,
     },
   ];
 

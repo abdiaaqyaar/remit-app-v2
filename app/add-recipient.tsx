@@ -30,10 +30,22 @@ export default function AddRecipientScreen() {
   const [currency, setCurrency] = useState((params.currency as string) || 'USD');
   const [accountNumber, setAccountNumber] = useState('');
   const [bankName, setBankName] = useState('');
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'bank' | 'mobile' | 'cash'>('bank');
 
   const handleSave = async () => {
-    if (!fullName || !country || !accountNumber) {
+    if (!fullName || !country) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (deliveryMethod === 'bank' && !accountNumber) {
+      Alert.alert('Error', 'Please provide account number for bank transfer');
+      return;
+    }
+
+    if (deliveryMethod === 'mobile' && (!phone || !mobileMoneyProvider)) {
+      Alert.alert('Error', 'Please provide phone and mobile money provider');
       return;
     }
 
@@ -46,8 +58,9 @@ export default function AddRecipientScreen() {
         phone: phone || undefined,
         country,
         currency,
-        account_number: accountNumber,
-        bank_name: bankName || undefined,
+        account_number: deliveryMethod === 'bank' ? accountNumber : undefined,
+        bank_name: deliveryMethod === 'bank' ? (bankName || undefined) : undefined,
+        mobile_money_provider: deliveryMethod === 'mobile' ? mobileMoneyProvider : undefined,
       });
 
       Alert.alert('Success', 'Recipient added successfully', [
@@ -130,26 +143,81 @@ export default function AddRecipientScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Account Number *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="1234567890"
-              placeholderTextColor="#666"
-              value={accountNumber}
-              onChangeText={setAccountNumber}
-            />
+            <Text style={styles.label}>Delivery Method *</Text>
+            <View style={styles.deliveryOptions}>
+              <TouchableOpacity
+                style={[styles.deliveryOption, deliveryMethod === 'bank' && styles.deliveryOptionSelected]}
+                onPress={() => setDeliveryMethod('bank')}
+              >
+                <Text style={[styles.deliveryOptionText, deliveryMethod === 'bank' && styles.deliveryOptionTextSelected]}>
+                  Bank Deposit
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deliveryOption, deliveryMethod === 'mobile' && styles.deliveryOptionSelected]}
+                onPress={() => setDeliveryMethod('mobile')}
+              >
+                <Text style={[styles.deliveryOptionText, deliveryMethod === 'mobile' && styles.deliveryOptionTextSelected]}>
+                  MPesa/Airtel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deliveryOption, deliveryMethod === 'cash' && styles.deliveryOptionSelected]}
+                onPress={() => setDeliveryMethod('cash')}
+              >
+                <Text style={[styles.deliveryOptionText, deliveryMethod === 'cash' && styles.deliveryOptionTextSelected]}>
+                  Cash Pickup
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bank Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Bank of America"
-              placeholderTextColor="#666"
-              value={bankName}
-              onChangeText={setBankName}
-            />
-          </View>
+          {deliveryMethod === 'bank' && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Account Number *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1234567890"
+                  placeholderTextColor="#666"
+                  value={accountNumber}
+                  onChangeText={setAccountNumber}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Bank Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Bank of America"
+                  placeholderTextColor="#666"
+                  value={bankName}
+                  onChangeText={setBankName}
+                />
+              </View>
+            </>
+          )}
+
+          {deliveryMethod === 'mobile' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Mobile Money Provider *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="MPesa, Airtel Money, etc."
+                placeholderTextColor="#666"
+                value={mobileMoneyProvider}
+                onChangeText={setMobileMoneyProvider}
+              />
+            </View>
+          )}
+
+          {deliveryMethod === 'cash' && (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Recipient will pick up cash at a local agent. No additional details required.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -233,5 +301,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#000',
+  },
+  deliveryOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deliveryOption: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  deliveryOptionSelected: {
+    borderColor: '#a3e635',
+    backgroundColor: 'rgba(163, 230, 53, 0.1)',
+  },
+  deliveryOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#999',
+    textAlign: 'center',
+  },
+  deliveryOptionTextSelected: {
+    color: '#a3e635',
+  },
+  infoBox: {
+    backgroundColor: 'rgba(163, 230, 53, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#a3e635',
+    lineHeight: 20,
   },
 });

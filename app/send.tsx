@@ -47,7 +47,7 @@ export default function SendMoneyScreen() {
     }
 
     router.push({
-      pathname: '/send-payment',
+      pathname: '/send-delivery',
       params: {
         fromCurrency,
         toCurrency,
