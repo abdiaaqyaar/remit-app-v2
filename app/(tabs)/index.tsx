@@ -67,13 +67,33 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.sendButton}
-        onPress={() => router.push('/send')}
-      >
-        <Send size={24} color="#000" />
-        <Text style={styles.sendButtonText}>Send money</Text>
-      </TouchableOpacity>
+      <View style={styles.quickActions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => router.push('/send')}
+        >
+          <View style={styles.actionIcon}>
+            <Send size={24} color="#a3e635" />
+          </View>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Send money</Text>
+            <Text style={styles.actionSubtitle}>You send</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => router.push('/send-recipient')}
+        >
+          <View style={styles.actionIcon}>
+            <TrendingUp size={24} color="#a3e635" />
+          </View>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Quick transfer</Text>
+            <Text style={styles.actionSubtitle}>To saved recipient</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
@@ -179,20 +199,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  sendButton: {
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 24,
+    marginBottom: 8,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#a3e635',
-    marginHorizontal: 24,
-    padding: 18,
+    backgroundColor: '#1a1a1a',
+    padding: 16,
     borderRadius: 16,
-    gap: 8,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  sendButtonText: {
-    fontSize: 18,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(163, 230, 53, 0.1)',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: '#999',
   },
   statsContainer: {
     flexDirection: 'row',

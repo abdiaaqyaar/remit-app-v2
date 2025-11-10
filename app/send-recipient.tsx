@@ -19,18 +19,37 @@ export default function SendRecipientScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
-  const { getRecipientsByCurrency } = useRecipientsStore();
+  const { getRecipientsByUser, recipients: allRecipients } = useRecipientsStore();
   const { addTransaction } = useTransactionsStore();
   const [selectedRecipient, setSelectedRecipient] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const isQuickTransfer = !params.fromCurrency;
   const recipients = user
-    ? getRecipientsByCurrency(user.id, params.toCurrency as string)
+    ? (isQuickTransfer
+        ? getRecipientsByUser(user.id)
+        : allRecipients.filter(
+            (r) => r.user_id === user.id && r.currency === params.toCurrency
+          ))
     : [];
 
   const handleContinue = async () => {
     if (!selectedRecipient) {
       Alert.alert('Error', 'Please select a recipient');
+      return;
+    }
+
+    if (isQuickTransfer) {
+      const recipient = recipients.find((r) => r.id === selectedRecipient);
+      if (recipient) {
+        router.push({
+          pathname: '/send',
+          params: {
+            recipientId: selectedRecipient,
+            toCurrency: recipient.currency,
+          },
+        });
+      }
       return;
     }
 
@@ -83,7 +102,9 @@ export default function SendRecipientScreen() {
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Select recipient</Text>
         <Text style={styles.subtitle}>
-          Who should receive {params.receiveAmount} {params.toCurrency}?
+          {isQuickTransfer
+            ? 'Choose a recipient to send money'
+            : `Who should receive ${params.receiveAmount} ${params.toCurrency}?`}
         </Text>
 
         <TouchableOpacity
@@ -91,7 +112,7 @@ export default function SendRecipientScreen() {
           onPress={() =>
             router.push({
               pathname: '/add-recipient',
-              params: { currency: params.toCurrency },
+              params: isQuickTransfer ? {} : { currency: params.toCurrency },
             })
           }
         >
