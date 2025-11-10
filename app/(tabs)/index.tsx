@@ -6,13 +6,16 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactionsStore } from '@/stores/transactionsStore';
 import { useRecipientsStore } from '@/stores/recipientsStore';
 import { Transaction } from '@/types/database';
-import { Send, TrendingUp, Clock, CheckCircle } from 'lucide-react-native';
+import { Send, TrendingUp, Clock, CheckCircle, Info } from 'lucide-react-native';
+import { getExchangeRate, formatCurrency } from '@/services/exchange-service';
+import { CurrencySelector } from '@/components/CurrencySelector';
 
 export default function HomeScreen() {
   const { user, signOut } = useAuth();
@@ -22,10 +25,32 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
 
   const transactions = user ? getTransactionsByUser(user.id).slice(0, 10) : [];
+  const [sendAmount, setSendAmount] = useState('100');
+  const [fromCurrency, setFromCurrency] = useState('USD');
+  const [toCurrency, setToCurrency] = useState('KES');
+  const [exchangeRate, setExchangeRate] = useState(1);
+
+  useEffect(() => {
+    const rate = getExchangeRate(fromCurrency, toCurrency);
+    setExchangeRate(rate);
+  }, [fromCurrency, toCurrency]);
+
+  const receiveAmount = parseFloat(sendAmount || '0') * exchangeRate;
 
   const loadTransactions = () => {
     setLoading(true);
     setTimeout(() => setLoading(false), 300);
+  };
+
+  const handleQuickSend = () => {
+    router.push({
+      pathname: '/send',
+      params: {
+        fromCurrency,
+        toCurrency,
+        amount: sendAmount,
+      },
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -64,6 +89,56 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity onPress={signOut} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.calculatorCard}>
+        <View style={styles.calculatorSection}>
+          <Text style={styles.calculatorLabel}>You send exactly</Text>
+          <View style={styles.calculatorRow}>
+            <TouchableOpacity style={styles.currencyButton}>
+              <CurrencySelector
+                selectedCurrency={fromCurrency}
+                onSelect={setFromCurrency}
+              />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.calculatorInput}
+              value={sendAmount}
+              onChangeText={setSendAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor="#666"
+            />
+          </View>
+        </View>
+
+        <View style={styles.calculatorDivider} />
+
+        <View style={styles.calculatorSection}>
+          <Text style={styles.calculatorLabel}>Recipient gets</Text>
+          <View style={styles.calculatorRow}>
+            <TouchableOpacity style={styles.currencyButton}>
+              <CurrencySelector
+                selectedCurrency={toCurrency}
+                onSelect={setToCurrency}
+              />
+            </TouchableOpacity>
+            <Text style={styles.calculatorReceive}>
+              {receiveAmount.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.rateInfo}>
+          <Info size={16} color="#a3e635" />
+          <Text style={styles.rateInfoText}>
+            Real exchange rate with no hidden fees. What you see is what you pay.
+          </Text>
+        </View>
+
+        <TouchableOpacity style={styles.quickSendButton} onPress={handleQuickSend}>
+          <Text style={styles.quickSendButtonText}>Continue</Text>
         </TouchableOpacity>
       </View>
 
@@ -198,6 +273,78 @@ const styles = StyleSheet.create({
     color: '#a3e635',
     fontSize: 14,
     fontWeight: '600',
+  },
+  calculatorCard: {
+    backgroundColor: '#1a1a1a',
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  calculatorSection: {
+    marginBottom: 16,
+  },
+  calculatorLabel: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 12,
+  },
+  calculatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  currencyButton: {
+    minWidth: 120,
+  },
+  calculatorInput: {
+    flex: 1,
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#fff',
+    padding: 0,
+    textAlign: 'right',
+  },
+  calculatorReceive: {
+    flex: 1,
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#a3e635',
+    textAlign: 'right',
+  },
+  calculatorDivider: {
+    height: 1,
+    backgroundColor: '#333',
+    marginVertical: 20,
+  },
+  rateInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(163, 230, 53, 0.1)',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    marginTop: 16,
+  },
+  rateInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#a3e635',
+    lineHeight: 18,
+  },
+  quickSendButton: {
+    backgroundColor: '#a3e635',
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  quickSendButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000',
   },
   quickActions: {
     flexDirection: 'row',
